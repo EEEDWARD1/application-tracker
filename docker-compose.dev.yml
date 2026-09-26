@@ -1,0 +1,47 @@
+name: application-tracker-dev
+
+services:
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /workspace
+    command: dotnet watch --project app.api.csproj run --no-launch-profile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      DOTNET_WATCH_RESTART_ON_RUDE_EDIT: "true"
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=apptrack;Username=apptrack;Password=apptrack_dev"
+    ports:
+      - "127.0.0.1:5141:8080"
+    volumes:
+      - ./app.api:/workspace
+      - api_bin:/workspace/bin
+      - api_obj:/workspace/obj
+      - nuget_packages:/root/.nuget/packages
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: apptrack
+      POSTGRES_USER: apptrack
+      POSTGRES_PASSWORD: apptrack_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./app_database/V1__INITIAL_DB.sql:/docker-entrypoint-initdb.d/V1__INITIAL_DB.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  api_bin:
+  api_obj:
+  nuget_packages:
